@@ -23,6 +23,25 @@ MainWindowCallback(
             {
                OutputDebugStringA("WM_CLOSE\n");
             } break;
+          case WM_PAINT:
+            {
+                PAINTSTRUCT Paint;
+               HDC DeviceContext= BeginPaint(Window,&Paint);
+                int X=Paint.rcPaint.left;
+                int Y=Paint.rcPaint.left;
+                int Height= Paint.rcPaint.bottom - Paint.rcPaint.top;
+                int Width =Paint.rcPaint.right - Paint.rcPaint.left;
+                static DWORD OPERATION = WHITENESS;
+                PatBlt(DeviceContext,X,Y,Width,Height,OPERATION);
+            if(OPERATION==WHITENESS){
+                OPERATION=BLACKNESS;
+            }
+            else
+            {
+                OPERATION=WHITENESS;
+            }
+                EndPaint(Window,&Paint);
+               }break;
           case WM_ACTIVATEAPP:
             {
                OutputDebugStringA("WM_activateapp\n");
@@ -34,21 +53,18 @@ MainWindowCallback(
             }break;
     }
   
-  return(Result);
-}
+  return(Result); } 
 
-
-
-int CALLBACK WinMain(
-           HINSTANCE hInstance,
-           HINSTANCE hPrevInstance,
-             LPSTR     lpCmdLine,
-             int       nShowCmd
-)
+    int CALLBACK WinMain( 
+        HINSTANCE Instance,
+        HINSTANCE PrevInstance,
+        LPSTR    CommandLine,
+        int       ShowCode
+    )
 { WNDCLASS WindowClass = {}; 
   WindowClass.style=CS_OWNDC|CS_HREDRAW|CS_VREDRAW;
   WindowClass.lpfnWndProc=MainWindowCallback;
-  WindowClass.hInstance=hInstance; 
+  WindowClass.hInstance=Instance; 
   WindowClass.lpszClassName="HandmadeHerowindowClass";
 
   if(RegisterClass(&WindowClass))
@@ -58,48 +74,39 @@ int CALLBACK WinMain(
               WindowClass.lpszClassName,
             "Handmade Hero",
              WS_OVERLAPPEDWINDOW|WS_VISIBLE,  
-              CS_USEDEFAULT,
-              CS_USEDEFAULT,
-              CS_USEDEFAULT,
-              CS_USEDEFAULT,
+              CW_USEDEFAULT,
+              CW_USEDEFAULT,
+              CW_USEDEFAULT,
+              CW_USEDEFAULT,
               0, 
               0,
-              Instance,
+          Instance,
               0);
-      if(WindowHandle)
-      { 
-          MSG Message;
-          for(;;)
-          {
-            BOOL MessageResult = GetMessage(&Message,0,0,0);
-                 if(MessageResult>0){
-                                    
-
-
+        if(WindowHandle)
+        { 
+            for(;;)
+            {
+                MSG Message;
+                BOOL MessageResult = GetMessage(&Message,0,0,0);
+                if(MessageResult>0)
+                {
+                    TranslateMessage(&Message);                 
+                    DispatchMessage(&Message);                 
+                }
+                else
+                {
+                    break;
+                }
+            }
         }
-              else{break;}
-
-      }
-    else
-    {
-      }
-      
-     
+            else
+                {
+                    //logging
+                }
   }
- else
-    {
-    }
-  /* UINT      style;
-  
-  WNDPROC   lpfnWndProc;
-  int       cbClsExtra;
-  int       cbWndExtra;
-  HINSTANCE hInstance;
-  HICON     hIcon;
-  HCURSOR   hCursor;
-  HBRUSH    hbrBackground;
-  LPCSTR    lpszMenuName;
-  LPCSTR    lpszClassName; 
- WNDCLASSA, *PWNDCLASSA, *NPWNDCLASSA, *LPWNDCLASSA; */
+        else
+        {
+            //logging
+        }
   return(0);
 }
