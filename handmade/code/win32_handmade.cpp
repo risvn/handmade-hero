@@ -1,4 +1,60 @@
 #include <windows.h>
+#define global_var static
+#define local_persist static
+#define internal static
+
+global_var bool running;
+global_var BITMAPINFO BitmapInfo;
+global_var void *BitmapMemory;
+global_var HBITMAP BitmapHandle;
+global_var  HDC BitmapDeviceContext ; 
+
+internal void
+Win32ResizeDIBSection(int Width,int Height)
+{
+    //TODO(bullet Proof this);
+    //maybe dont free first,free after,then free first it that fails
+
+    if(BitmapHandle)
+    {
+        DeleteObject(BitmapHandle);
+    }
+    if(!BitmapDeviceContext) 
+    {
+
+        BitmapDeviceContext=CreateCompatibleDC(0);
+    }
+    BitmapInfo.bmiHeader.biSize=sizeof(BitmapInfo.bmiHeader) ;
+    BitmapInfo.bmiHeader.biWidth=Width;
+    BitmapInfo.bmiHeader.biHeight=Height;
+    BitmapInfo.bmiHeader.biPlanes=1;
+    BitmapInfo.bmiHeader.biBitCount=32;
+    BitmapInfo.bmiHeader.biCompression=BI_RGB;
+
+
+ BitmapHandle= CreateDIBSection(
+        BitmapDeviceContext, &BitmapInfo,
+        DIB_RGB_COLORS,
+        &BitmapMemory,
+        0,
+        0
+);
+
+}
+
+internal void
+Win32UpdateWindow(HDC DeviceContext,int X,int Y,int Width,int Height)
+{
+    StretchDIBits(
+        DeviceContext,
+        X,Y,Width,Height,
+        X,Y,Width,Height,
+        BitmapMemory,
+        &BitmapInfo,
+        DIB_RGB_COLORS,
+        SRCCOPY
+    );
+}
 
 
 LRESULT CALLBACK
@@ -12,16 +68,22 @@ MainWindowCallback(
         switch(Message)
         {
           case WM_SIZE:
-          { 
+          {     RECT ClientRect; 
+                GetClientRect(Window,&ClientRect);
+                int Height= ClientRect.bottom - ClientRect.top;
+                int Width= ClientRect.right - ClientRect.left;
+                Win32ResizeDIBSection(Width,Height);
              OutputDebugStringA("WM_SIZE\n");
+
           } break;
           case WM_DESTROY:
             {
-               OutputDebugStringA("WM_DESTROY\n");
+               
+               running=false;
             } break;
           case WM_CLOSE:
             {
-               OutputDebugStringA("WM_CLOSE\n");
+               running=false;
             } break;
           case WM_PAINT:
             {
@@ -31,15 +93,7 @@ MainWindowCallback(
                 int Y=Paint.rcPaint.left;
                 int Height= Paint.rcPaint.bottom - Paint.rcPaint.top;
                 int Width =Paint.rcPaint.right - Paint.rcPaint.left;
-                static DWORD OPERATION = WHITENESS;
-                PatBlt(DeviceContext,X,Y,Width,Height,OPERATION);
-            if(OPERATION==WHITENESS){
-                OPERATION=BLACKNESS;
-            }
-            else
-            {
-                OPERATION=WHITENESS;
-            }
+                Win32UpdateWindow(DeviceContext,X,Y,Width,Height);
                 EndPaint(Window,&Paint);
                }break;
           case WM_ACTIVATEAPP:
@@ -55,7 +109,11 @@ MainWindowCallback(
   
   return(Result); } 
 
-    int CALLBACK WinMain( 
+ 
+
+
+
+int CALLBACK WinMain( 
         HINSTANCE Instance,
         HINSTANCE PrevInstance,
         LPSTR    CommandLine,
@@ -84,7 +142,8 @@ MainWindowCallback(
               0);
         if(WindowHandle)
         { 
-            for(;;)
+            running=true;
+            while(running)
             {
                 MSG Message;
                 BOOL MessageResult = GetMessage(&Message,0,0,0);
