@@ -14,7 +14,6 @@ global_variable int BitmapHeight;
 internal void
 Win32ResizeDIBSection(int Width,int Height)   //Allocates (or reallocates) memory for the DIB section when the window is resized
 {
-    //TODO(bullet Proof this);
     //maybe dont free first,free after,then free first it that fails
 
     if(BitmapMemory)
