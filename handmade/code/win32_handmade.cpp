@@ -11,6 +11,37 @@ global_variable void *BitmapMemory;
 global_variable int BitmapWidth;
 global_variable int BitmapHeight;
 
+internal void renderGradient(int xoffset,int yoffset){
+
+    int Width=BitmapWidth;
+    int Height=BitmapHeight;
+    int BytesPerPixel=4;
+    int Pitch=Width*BytesPerPixel;
+    uint8* Row =(uint8*)BitmapMemory;
+    for(int Y=0;Y<BitmapHeight;Y++)
+    {   uint8* Pixel=(uint8*)Row;
+        for(int X=0;X<BitmapWidth;X++){
+            //little endian notation BBGGRRXX Memory layout
+            //Blue
+           *Pixel=(uint8)(X+xoffset);
+            ++Pixel;
+
+            //green
+           *Pixel=(uint8)(Y+yoffset);
+            ++Pixel;
+
+            //Red
+           *Pixel=0;
+            ++Pixel;
+
+            //XX 32-bit
+           *Pixel=0;
+            ++Pixel;
+        }
+        Row+=Pitch;
+    }
+}
+
 internal void
 Win32ResizeDIBSection(int Width,int Height)   //Allocates (or reallocates) memory for the DIB section when the window is resized
 {
@@ -35,37 +66,14 @@ Win32ResizeDIBSection(int Width,int Height)   //Allocates (or reallocates) memor
     int BitmapMemorySize=(BitmapWidth *BitmapHeight)*BytesPerPixel;
     BitmapMemory=VirtualAlloc(0,BitmapMemorySize,MEM_COMMIT,PAGE_READWRITE);
 
-    int Pitch=BitmapWidth*BytesPerPixel;
-    uint8* Row =(uint8*)BitmapMemory;
-    for(int Y=0;Y<BitmapHeight;Y++)
-    {   uint8* Pixel=(uint8*)Row;
-        for(int X=0;X<BitmapWidth;X++){
-            //little endian notation BBGGRRXX Memory layout
-            //Blue
-           *Pixel=(uint8)X;
-            ++Pixel;
-
-            //green
-           *Pixel=(uint8)Y;
-            ++Pixel;
-
-            //Red
-           *Pixel=0;
-            ++Pixel;
-
-            //XX 32-bit
-           *Pixel=0;
-            ++Pixel;
-        }
-        Row+=Pitch;
-    }
 }
 
+
 internal void
-Win32UpdateWindow(HDC DeviceContext,RECT *WindowRect,int X,int Y,int Width,int Height)   //Draw the current bitmap memory buffer onto the window.
+Win32UpdateWindow(HDC DeviceContext,RECT *ClientRect,int X,int Y,int Width,int Height)   //Draw the current bitmap memory buffer onto the window.
 {
-    int WindowWidth = WindowRect->right - WindowRect->left;
-    int WindowHeight = WindowRect->bottom - WindowRect->top;                               // RECT structure, which describes the client area of the window 
+    int WindowWidth = ClientRect->right - ClientRect->left;
+    int WindowHeight = ClientRect->bottom - ClientRect->top;                               // RECT structure, which describes the client area of the window 
     StretchDIBits(                                                                       //Copies pixels from memory (BitmapMemory) to the window (DeviceContext).
         DeviceContext,
    //     X,Y,Width,Height,
@@ -144,7 +152,7 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
   WindowClass.lpszClassName="HandmadeHerowindowClass";
 
   if(RegisterClass(&WindowClass))
-  {  HWND WindowHandle = 
+  {  HWND Window = 
       CreateWindowExA(
                 0,
               WindowClass.lpszClassName,
@@ -158,22 +166,32 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
               0,
           Instance,
               0);
-        if(WindowHandle)
+        if(Window)
         { 
+                int xoffset=0;
+                int yoffset=0;
             running=true;
             while(running)
             {
                 MSG Message;
-                BOOL MessageResult = GetMessage(&Message,0,0,0);
-                if(MessageResult>0)
+                while(PeekMessage(&Message,0,0,0,PM_REMOVE))
                 {
+                if(Message.message==WM_QUIT){ running=false;}
                     TranslateMessage(&Message);                 
                     DispatchMessage(&Message);                 
                 }
-                else
-                {
-                    break;
-                }
+
+                renderGradient(xoffset,yoffset);
+                
+                HDC DeviceContext=GetDC(Window);
+                RECT ClientRect; 
+                GetClientRect(Window,&ClientRect);
+                int WindowWidth = ClientRect.right - ClientRect.left;
+                int WindowHeight = ClientRect.bottom - ClientRect.top;                               // RECT structure, which describes the client area of the window 
+                Win32UpdateWindow(DeviceContext,&ClientRect,0,0,WindowWidth,WindowHeight);   //Draw the current bitmap memory buffer onto the window.
+                ReleaseDC(Window,DeviceContext);
+                
+                ++xoffset;
             }
         }
             else
