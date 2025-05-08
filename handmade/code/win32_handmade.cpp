@@ -60,9 +60,21 @@ global_variable x_input_set_state *XInputSetState_;
 #define XInputGetState XInputGetState_
 #define XInputSetState XInputSetState_
 
+internal void
+win32LoadXInput(void)
+{
+HMODULE WINAPI XInputLibrary = LoadLibrary("xinput_3.dll"); 
+    if(XInputLibrary)
+  { 
+    XInputGetState = (x_input_get_state *)GetProcAddress(XInputLibrary,"XInputGetState" );
+    XInputSetState = (x_input_set_state *)GetProcAddress(XInputLibrary,"XInputSetState" );
+
+  }
+
+}
 
 
-win32_window_dimension 
+internal win32_window_dimension 
 Win32GetWindowDimension(HWND Window){
 
     win32_window_dimension Result;
@@ -74,12 +86,12 @@ Win32GetWindowDimension(HWND Window){
 }
 
 
-internal void renderGradient(win32_buffer Buffer,int xoffset,int yoffset){
+internal void renderGradient(win32_buffer *Buffer,int xoffset,int yoffset){
 
-    uint8* Row =(uint8*)Buffer.Memory;
-    for(int Y=0;Y<Buffer.Height;++Y)
+    uint8* Row =(uint8*)Buffer->Memory;
+    for(int Y=0;Y<Buffer->Height;++Y)
     {   uint32* Pixel=(uint32*)Row;
-        for(int X=0;X<Buffer.Width;++X){
+        for(int X=0;X<Buffer->Width;++X){
             //little endian notation BBGGRRXX Memory layout
             //Blue
             uint8 Blue=(uint8)(X+xoffset);
@@ -88,7 +100,7 @@ internal void renderGradient(win32_buffer Buffer,int xoffset,int yoffset){
 
             //green
         }
-        Row+=Buffer.Pitch;
+        Row+=Buffer->Pitch;
     }
 }
 
@@ -123,16 +135,16 @@ Win32ResizeDIBSection(win32_buffer *Buffer,int Width,int Height)   //Allocates (
 
 
 internal void
-Win32CopyBufferToWindow(HDC DeviceContext,int WindowWidth,int WindowHeight,win32_buffer Buffer,int X,int Y,int Width,int Height)   //Draw the current bitmap memory buffer onto the window.
+Win32CopyBufferToWindow(win32_buffer *Buffer,HDC DeviceContext,int WindowWidth,int WindowHeight)   //Draw the current bitmap memory buffer onto the window.
 {
     StretchDIBits(                                                                       //Copies pixels from memory (BitmapMemory) to the window (DeviceContext).
         DeviceContext,
    //     X,Y,Width,Height,
    //     X,Y,Width,Height,
         0,0,WindowWidth,WindowHeight,      //new DIB
-        0,0,Buffer.Width,Buffer.Height,    //old DIB
-        Buffer.Memory,
-        &Buffer.Info,
+        0,0,Buffer->Width,Buffer->Height,    //old DIB
+        Buffer->Memory,
+        &Buffer->Info,
         DIB_RGB_COLORS,
         SRCCOPY
     );
@@ -158,6 +170,64 @@ MainWindowCallback( HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
             {
                GlobalRunning=false;
             } break;
+          case WM_SYSKEYDOWN:
+          case WM_SYSKEYUP:
+          case WM_KEYDOWN:
+          case WM_KEYUP:
+            {
+              uint32 VKCode = WParam;
+              bool WasDown = ((LParam & (1<<30))!=0);
+              bool IsDown = ((LParam & (1<<30))==0);
+        if(WasDown != IsDown)
+        {
+              if(VKCode == 'W')
+              {
+
+                }
+              else if(VKCode == 'A')
+              {
+
+              }
+              
+              else if(VKCode == 'S')
+              {
+
+              }
+              else if(VKCode == 'D')
+              {
+
+              }
+              else if(VKCode == 'Q')
+              {
+
+              }
+              else if(VKCode == 'E')
+              {
+
+              }
+              else if(VKCode == VK_UP)
+              {
+
+              }
+              else if(VKCode == VK_DOWN)
+              {
+
+              }
+              else if(VKCode == VK_LEFT)
+              {
+
+              }
+              else if(VKCode == VK_RIGHT)
+              {
+
+              }
+              else if(VKCode == VK_SPACE)
+              {
+
+              }
+        }
+              }break;
+
           case WM_PAINT:
             {
                 PAINTSTRUCT Paint;
@@ -169,7 +239,7 @@ MainWindowCallback( HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 
                 win32_window_dimension Dimension=Win32GetWindowDimension(Window);
 
-                Win32CopyBufferToWindow(DeviceContext,Dimension.Width,Dimension.Height,GlobalBackBuffer,X,Y,Width,Height);
+                Win32CopyBufferToWindow(&GlobalBackBuffer,DeviceContext,Dimension.Width,Dimension.Height);
                 EndPaint(Window,&Paint);
                }break;
           case WM_ACTIVATEAPP:
@@ -190,7 +260,10 @@ MainWindowCallback( HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 
 
 int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLine, int ShowCode)
-{ WNDCLASS WindowClass = {}; 
+{ 
+ win32LoadXInput(); 
+
+  WNDCLASS WindowClass = {}; 
 
 
     Win32ResizeDIBSection(&GlobalBackBuffer,1280,720);
@@ -256,6 +329,13 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
 
                         int16 StickX= Pad->sThumbLX;
                         int16 StickY= Pad->sThumbLY;
+
+
+                        if(AButton)
+                        {
+                          yoffset+=2;
+                         }
+
                     }
                   else
                           {
@@ -266,15 +346,24 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
 
                   }
 
-                renderGradient(GlobalBackBuffer,xoffset,yoffset);
+                      //vibration for controllers
+
+                      XINPUT_VIBRATION vibration;
+                      vibration.wLeftMotorSpeed=60000;
+                      vibration.wRightMotorSpeed=60000;
+                      XInputSetState(0,&vibration);
+
+
+
+
+                renderGradient(&GlobalBackBuffer,xoffset,yoffset);
                 
                 HDC DeviceContext=GetDC(Window);
                 win32_window_dimension Dimension=Win32GetWindowDimension(Window);
-                Win32CopyBufferToWindow(DeviceContext,Dimension.Width,Dimension.Height,GlobalBackBuffer,0,0,Dimension.Width,Dimension.Height);
+                Win32CopyBufferToWindow(&GlobalBackBuffer,DeviceContext,Dimension.Width,Dimension.Height);
                 ReleaseDC(Window,DeviceContext);
                 
                 ++xoffset;
-                yoffset+=2;
             }
         }
             else
