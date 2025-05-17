@@ -11,12 +11,11 @@ typedef uint16_t uint16;
 typedef uint32_t uint32;
 typedef uint64_t uint64;
 
-
 typedef int8_t int8;
 typedef int16_t int16;
 typedef int32_t int32;
 typedef int64_t int64;
-
+typedef int32 bool32;
 
 struct win32_buffer 
 {
@@ -45,13 +44,13 @@ typedef X_INPUT_SET_STATE(x_input_set_state);
 
 X_INPUT_GET_STATE(XInputGetStateStub)
 {
-  return(0);
+  return(ERROR_DEVICE_NOT_CONNECTED);
 }
 
 
 X_INPUT_SET_STATE(XInputSetStateStub)
 {
-  return(0);
+  return(ERROR_DEVICE_NOT_CONNECTED);
 }
 
 global_variable x_input_get_state *XInputGetState_=XInputGetStateStub;
@@ -63,7 +62,12 @@ global_variable x_input_set_state *XInputSetState_;
 internal void
 win32LoadXInput(void)
 {
-HMODULE WINAPI XInputLibrary = LoadLibrary("xinput_3.dll"); 
+
+HMODULE WINAPI XInputLibrary = LoadLibrary("xinput_4.dll"); 
+if(!XInputLibrary)
+  {
+    HMODULE WINAPI XInputLibrary = LoadLibrary("xinput_3.dll"); 
+  }
     if(XInputLibrary)
   { 
     XInputGetState = (x_input_get_state *)GetProcAddress(XInputLibrary,"XInputGetState" );
@@ -176,8 +180,8 @@ MainWindowCallback( HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
           case WM_KEYUP:
             {
               uint32 VKCode = WParam;
-              bool WasDown = ((LParam & (1<<30))!=0);
-              bool IsDown = ((LParam & (1<<30))==0);
+              bool32 WasDown = ((LParam & (1<<30))!=0);
+              bool32 IsDown = ((LParam & (1<<30))==0);
         if(WasDown != IsDown)
         {
               if(VKCode == 'W')
@@ -226,6 +230,14 @@ MainWindowCallback( HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 
               }
         }
+              bool32 AltKeyWasDown = (LParam & (1 << 29));
+              if((VKCode == VK_F4)&& AltKeyWasDown)
+              {
+                GlobalRunning = false;
+              }
+
+
+
               }break;
 
           case WM_PAINT:
