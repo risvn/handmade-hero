@@ -30,6 +30,7 @@ struct win32_buffer
 
 global_variable bool GlobalRunning;
 global_variable  win32_buffer GlobalBackBuffer;
+global_variable  LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 
 struct win32_window_dimension
 { 
@@ -155,8 +156,7 @@ Win32InitDSound(HWND Window,int32 SamplesPerSecond,int32 BufferSize)
       BufferDescription.dwFlags=0;
       BufferDescription.dwBufferBytes=BufferSize;
       BufferDescription.lpwfxFormat=&WaveFormat;
-      LPDIRECTSOUNDBUFFER SecondaryBuffer;
-      if(SUCCEEDED(DirectSound->CreateSoundBuffer(&BufferDescription,&SecondaryBuffer,0)))
+      if(SUCCEEDED(DirectSound->CreateSoundBuffer(&BufferDescription,&GlobalSecondaryBuffer,0)))
       {
         //start playing
        OutputDebugStringA("Secoundary buffer format was set.\n");
@@ -406,10 +406,13 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
       HDC DeviceContext=GetDC(Window);
                 int xoffset=0;
                 int yoffset=0;
+      int SampelsPerSecond=48000;
+      int Hz=256;
+      int SquareWaveCounter=0;
+      int SquareWavePeriod=SamplesPerSecond/Hz ;    //?
 
 
-
-      Win32InitDSound(Window,48000,48000*sizeof(int16)*2);
+      Win32InitDSound(Window,SampelsPerSecond,SampelsPerSecond*sizeof(int16)*2);
            GlobalRunning=true;
             while(GlobalRunning)
             {
@@ -476,7 +479,63 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
 
 
                 renderGradient(&GlobalBackBuffer,xoffset,yoffset);
+
+
+                //DirectSound output test
+         
+                DWORD WritePointer= ;
+                DWORD BytesToWrite= ;
                 
+                //sterio sound
+                //int16 int16  int16 int16
+                //[left right] [left right]
+
+VOID *Region1;
+DWORD Region1Size;
+VOID *Region2;
+DWORD Region2Size;
+
+GlobalSecondaryBuffer->Lock(WritePointer,BytesToWrite,
+                            &Region1,&Region1Size,
+                            &Region2,&Region2Size,0);
+
+//TODO: assert that region1 is valid
+
+int16 *SampleOut=(int16*)Region1;
+for(DWORD SampleIndex=0;SampleIndex<Region1Size;++SampleIndex)
+{
+    if(SquareWaveCounter)
+       {
+          SquareWaveCounter=SquareWavePeriod  ;
+      }
+    int16 SampleValue=(SquareWaveCounter>(SquareWavePeriod/2))?16000:-16000 ;
+    *SampleOut++=SampleValue;
+    *SampleOut++=SampleValue;
+    --SquareWaveCounter;
+   }
+  
+
+int16 *SampleOut=(int16*)Region2;
+for(DWORD SampleIndex=0;SampleIndex<Region2Size;++SampleIndex)
+{
+    if(SquareWaveCounter)
+       {
+          SquareWaveCounter=SquareWavePeriod  ;
+      }
+    int16 SampleValue=(SquareWaveCounter>(SquareWavePeriod/2))?16000:-16000 ;
+    *SampleOut++=SampleValue;
+    *SampleOut++=SampleValue;
+    --SquareWaveCounter;
+   }
+
+
+
+
+
+
+
+
+
                 HDC DeviceContext=GetDC(Window);
                 win32_window_dimension Dimension=Win32GetWindowDimension(Window);
                 Win32CopyBufferToWindow(&GlobalBackBuffer,DeviceContext,Dimension.Width,Dimension.Height);
