@@ -415,6 +415,7 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
       
       //NOTE(rsvn):for sound test
       int SamplesPerSecond=48000;
+      int ToneVolume=3000;
       uint32 RunningSampleIndex=0;
       int Hz=256;
       int SquareWaveCounter=0;
@@ -543,7 +544,7 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
                 DWORD Region1SampleCount=Region1Size/BytesPerSample;
                 for(DWORD SampleIndex=0;SampleIndex<Region1SampleCount;++SampleIndex)
                 {
-                    int16 SampleValue=((RunningSampleIndex++/HalfSquareWavePeriod)%2)?16000:-16000 ;
+                    int16 SampleValue=((RunningSampleIndex++/HalfSquareWavePeriod)%2)?ToneVolume:-ToneVolume ;
                     *SampleOut++=SampleValue;
                     *SampleOut++=SampleValue;
 
@@ -554,11 +555,14 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
                 SampleOut=(int16*)Region2;
                 for(DWORD SampleIndex=0;SampleIndex<Region2SampleCount;++SampleIndex)
                 {
-                   int16 SampleValue=((RunningSampleIndex++/HalfSquareWavePeriod)%2)?16000:-16000 ;
+                   int16 SampleValue=((RunningSampleIndex++/HalfSquareWavePeriod)%2)?ToneVolume:-ToneVolume ;
+
                     *SampleOut++=SampleValue;
                     *SampleOut++=SampleValue;
                    }
- 
+
+
+            GlobalSecondaryBuffer->Unlock(Region1,Region1Size,Region2,Region2Size);
 
           }
       }
