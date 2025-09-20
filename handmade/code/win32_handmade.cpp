@@ -153,9 +153,13 @@ Win32InitDSound(HWND Window,int32 SamplesPerSecond,int32 BufferSize)
 
 
       DSBUFFERDESC BufferDescription={};
+      BufferDescription.dwSize=sizeof(BufferDescription);
       BufferDescription.dwFlags=0;
       BufferDescription.dwBufferBytes=BufferSize;
       BufferDescription.lpwfxFormat=&WaveFormat;
+      HRESULT Error=DirectSound->CreateSoundBuffer(&BufferDescription,&GlobalSecondaryBuffer,0);
+
+
       if(SUCCEEDED(DirectSound->CreateSoundBuffer(&BufferDescription,&GlobalSecondaryBuffer,0)))
       {
         //start playing
@@ -404,15 +408,25 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
         {
 
       HDC DeviceContext=GetDC(Window);
+
+      //NOTE(rsvn):for graphics  test
                 int xoffset=0;
                 int yoffset=0;
-      int SampelsPerSecond=48000;
+      
+      //NOTE(rsvn):for sound test
+      int SamplesPerSecond=48000;
+      uint32 RunningSampleIndex=0;
       int Hz=256;
       int SquareWaveCounter=0;
       int SquareWavePeriod=SamplesPerSecond/Hz ;    //?
+      int HalfSquareWavePeriod=SquareWavePeriod/2;    //?
+      int BytesPerSample=sizeof(int16)*2 ;
+      int SecondaryBufferSize=SamplesPerSecond*BytesPerSample;
 
 
-      Win32InitDSound(Window,SampelsPerSecond,SampelsPerSecond*sizeof(int16)*2);
+
+      Win32InitDSound(Window,SamplesPerSecond,SecondaryBufferSize);
+      GlobalSecondaryBuffer->Play(0,0,DSBPLAY_LOOPING);
            GlobalRunning=true;
             while(GlobalRunning)
             {
@@ -481,54 +495,74 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
                 renderGradient(&GlobalBackBuffer,xoffset,yoffset);
 
 
-                //DirectSound output test
+                //  DirectSound output test
          
-                DWORD WritePointer= ;
-                DWORD BytesToWrite= ;
-                
+                DWORD PlayCursor ;
+                DWORD WriteCursor ;
+              
+
+        if(SUCCEEDED(GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursor,&WriteCursor)))
+        {
+          
+            DWORD BytesToLock=RunningSampleIndex*BytesPerSample%SecondaryBufferSize;
+            DWORD BytesToWrite;
+
+            if(BytesToLock>PlayCursor){
+                BytesToWrite=(SecondaryBufferSize-BytesToLock);
+                BytesToWrite+=PlayCursor;
+
+          }
+          else
+            {
+                BytesToWrite=(PlayCursor-BytesToLock);
+
+
+           }
+
+
+
+        
                 //sterio sound
                 //int16 int16  int16 int16
                 //[left right] [left right]
 
-VOID *Region1;
-DWORD Region1Size;
-VOID *Region2;
-DWORD Region2Size;
+                VOID *Region1;
+                DWORD Region1Size;
+                VOID *Region2;
+                DWORD Region2Size;
+                
+        if(SUCCEEDED(GlobalSecondaryBuffer->Lock(BytesToLock,BytesToWrite,
+                                            &Region1,&Region1Size,
+                                            &Region2,&Region2Size,0)))
+          {
+                
+                //TODO: assert that region1 is valid
+                
+                int16 *SampleOut=(int16*)Region1;
+                
+                DWORD Region1SampleCount=Region1Size/BytesPerSample;
+                for(DWORD SampleIndex=0;SampleIndex<Region1SampleCount;++SampleIndex)
+                {
+                    int16 SampleValue=((RunningSampleIndex++/HalfSquareWavePeriod)%2)?16000:-16000 ;
+                    *SampleOut++=SampleValue;
+                    *SampleOut++=SampleValue;
 
-GlobalSecondaryBuffer->Lock(WritePointer,BytesToWrite,
-                            &Region1,&Region1Size,
-                            &Region2,&Region2Size,0);
+                   }
+                  
+                
+                DWORD Region2SampleCount=Region2Size/BytesPerSample;
+                SampleOut=(int16*)Region2;
+                for(DWORD SampleIndex=0;SampleIndex<Region2SampleCount;++SampleIndex)
+                {
+                   int16 SampleValue=((RunningSampleIndex++/HalfSquareWavePeriod)%2)?16000:-16000 ;
+                    *SampleOut++=SampleValue;
+                    *SampleOut++=SampleValue;
+                   }
+ 
 
-//TODO: assert that region1 is valid
-
-int16 *SampleOut=(int16*)Region1;
-for(DWORD SampleIndex=0;SampleIndex<Region1Size;++SampleIndex)
-{
-    if(SquareWaveCounter)
-       {
-          SquareWaveCounter=SquareWavePeriod  ;
+          }
       }
-    int16 SampleValue=(SquareWaveCounter>(SquareWavePeriod/2))?16000:-16000 ;
-    *SampleOut++=SampleValue;
-    *SampleOut++=SampleValue;
-    --SquareWaveCounter;
-   }
-  
-
-int16 *SampleOut=(int16*)Region2;
-for(DWORD SampleIndex=0;SampleIndex<Region2Size;++SampleIndex)
-{
-    if(SquareWaveCounter)
-       {
-          SquareWaveCounter=SquareWavePeriod  ;
-      }
-    int16 SampleValue=(SquareWaveCounter>(SquareWavePeriod/2))?16000:-16000 ;
-    *SampleOut++=SampleValue;
-    *SampleOut++=SampleValue;
-    --SquareWaveCounter;
-   }
-
-
+                
 
 
 
