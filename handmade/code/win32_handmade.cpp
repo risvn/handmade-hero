@@ -2,10 +2,12 @@
 #include <stdint.h>
 #include <xinput.h>
 #include <dsound.h>
+#include <math.h>
 
 #define global_variable static
 #define local_persist static
 #define internal static
+#define pi32 3.14159 
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;
@@ -17,6 +19,7 @@ typedef int16_t int16;
 typedef int32_t int32;
 typedef int64_t int64;
 typedef int32 bool32;
+typedef float real32;
 
 struct win32_buffer 
 {
@@ -418,9 +421,7 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
       int ToneVolume=3000;
       uint32 RunningSampleIndex=0;
       int Hz=256;
-      int SquareWaveCounter=0;
-      int SquareWavePeriod=SamplesPerSecond/Hz ;    //?
-      int HalfSquareWavePeriod=SquareWavePeriod/2;    //?
+      int WavePeriod=SamplesPerSecond/Hz ;    //?
       int BytesPerSample=sizeof(int16)*2 ;
       int SecondaryBufferSize=SamplesPerSecond*BytesPerSample;
 
@@ -544,9 +545,13 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
                 DWORD Region1SampleCount=Region1Size/BytesPerSample;
                 for(DWORD SampleIndex=0;SampleIndex<Region1SampleCount;++SampleIndex)
                 {
-                    int16 SampleValue=((RunningSampleIndex++/HalfSquareWavePeriod)%2)?ToneVolume:-ToneVolume ;
+                    real32 t= 2.0f*pi32*(real32)RunningSampleIndex/(real32)WavePeriod;
+                    real32 SinValue=sinf(t);
+                    int16 SampleValue=(int16)(SinValue * ToneVolume) ;
                     *SampleOut++=SampleValue;
                     *SampleOut++=SampleValue;
+
+                    ++RunningSampleIndex;
 
                    }
                   
@@ -555,10 +560,14 @@ int CALLBACK WinMain( HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandL
                 SampleOut=(int16*)Region2;
                 for(DWORD SampleIndex=0;SampleIndex<Region2SampleCount;++SampleIndex)
                 {
-                   int16 SampleValue=((RunningSampleIndex++/HalfSquareWavePeriod)%2)?ToneVolume:-ToneVolume ;
+                    real32 t= 2.0f*pi32*(real32)RunningSampleIndex/(real32)WavePeriod;
+                    real32 SinValue=sinf(t);
+                    int16 SampleValue=(int16)(SinValue * ToneVolume) ;
+ 
+                    *SampleOut++=SampleValue;
+                    *SampleOut++=SampleValue;
 
-                    *SampleOut++=SampleValue;
-                    *SampleOut++=SampleValue;
+                    ++RunningSampleIndex;
                    }
 
 
